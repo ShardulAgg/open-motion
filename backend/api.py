@@ -10,7 +10,7 @@ import pickle
 app_router = APIRouter()
 
 
-SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
+SCOPES = ['https://www.googleapis.com/auth/calendar']
 calendar_service = None
 
 class Task(BaseModel):
@@ -59,6 +59,55 @@ async def complete_auth(code: str):
     calendar_service = build('calendar', 'v3', credentials=creds)
     return {"message": "Authentication completed successfully"}
 
+
+@app_router.post("/create_open_motion_events")
+async def create_task():
+    if not calendar_service:
+        raise HTTPException(status_code=500, detail="Google Calendar service not initialized")
+    try:
+        now = datetime.utcnow()
+        for i in range(1, 3):
+            start_time = now + timedelta(hours=i)
+            end_time = start_time + timedelta(hours=1)
+            event = {
+                'summary': f'Open Motion Event {i}',
+                'description': 'open-motion',
+                'start': {
+                    'dateTime': start_time.isoformat() + 'Z',
+                },
+                'end': {
+                    'dateTime': end_time.isoformat() + 'Z',
+                },
+            }
+            calendar_service.events().insert(calendarId='primary', body=event).execute()
+        return {"message": "Two open-motion events added successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+@app_router.post("/createTask")
+async def create_task(task: Task):
+    if not calendar_service:
+        raise HTTPException(status_code=500, detail="Google Calendar service not initialized")
+    try:
+        now = datetime.utcnow()
+        first_day = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        last_day = (first_day + timedelta(days=32)).replace(day=1) - timedelta(seconds=1)
+
+        events_result = calendar_service.events().list(
+            calendarId='primary',
+            timeMin=first_day.isoformat() + 'Z',
+            timeMax=last_day.isoformat() + 'Z',
+            singleEvents=True,
+            orderBy='startTime'
+        ).execute()
+        
+        events = events_result.get('items', [])
+        open_motion_events = [event for event in events if 'open-motion' in event.get('description', '').lower()]
+        
+        return {"all_events": len(events), "open_motion_events": len(open_motion_events)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 
 @app_router.get("/events")
