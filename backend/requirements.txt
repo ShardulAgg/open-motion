@@ -1,0 +1,11 @@
+uvicorn
+fastapi
+black
+isort
+websockets
+pydantic
+debugpy
+openai
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
