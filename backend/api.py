@@ -1,7 +1,7 @@
 from core import *
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timedelta
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 import pickle
@@ -66,13 +66,22 @@ async def get_calendar_events():
     if not calendar_service:
         raise HTTPException(status_code=500, detail="Google Calendar service not initialized")
     try:
-        # Fetch events from Google Calendar
+        # Get the first and last day of the current month
+        now = datetime.utcnow()
+        first_day = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        last_day = (first_day + timedelta(days=32)).replace(day=1) - timedelta(seconds=1)
+
+        # Fetch events from Google Calendar for the current month
         events_result = calendar_service.events().list(
-            calendarId='primary', maxResults=10, singleEvents=True, orderBy='startTime'
+            calendarId='primary',
+            timeMin=first_day.isoformat() + 'Z',
+            timeMax=last_day.isoformat() + 'Z',
+            singleEvents=True,
+            orderBy='startTime'
         ).execute()
         events = events_result.get('items', [])
         if not events:
-            return {"message": "No upcoming events found."}
+            return {"message": "No events found for the current month."}
         return [{"start": event['start'].get('dateTime', event['start'].get('date')), 
                  "summary": event['summary']} for event in events]
     except Exception as e:
