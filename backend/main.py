@@ -6,22 +6,22 @@ import debugpy
 
 
 # Set up fastapi
-# def setup_fastapi():
-#     app = FastAPI()
-#     origins = ["*"]
-#     app.add_middleware(
-#         CORSMiddleware,
-#         allow_origins=origins,
-#         allow_credentials=False,
-#         allow_methods=["*"],
-#         allow_headers=["*"],
-#     )
-#     return app
+def setup_fastapi():
+    app = FastAPI()
+    origins = ["*"]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    return app
 
 
 
 # Set up app
-app = FastAPI()
+app = setup_fastapi()
 
 
 # Function to initialize Google Calendar service

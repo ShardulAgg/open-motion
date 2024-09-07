@@ -1,9 +1,12 @@
 import React, {useState} from 'react';
+import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
+
 import { Layout, theme } from 'antd';
 import logo from './logo.svg';
 import { ConfigProvider } from 'antd';
 import Month from './components/Month';
-import Weekly from './components/Week';
+import Events from './components/Events';
+import Form from './components/Form';
 import { Button, Space, Typography } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 const { defaultAlgorithm, darkAlgorithm } = theme;
@@ -21,45 +24,42 @@ function App() {
   };
 
   return (
-    <Layout>
-      <Header style={{backgroundColor:'gray'}}>
-        <div className="button-group">
-          <Space direction="horizontal" size="small">
-          <Typography.Title level={2} style={{ color: 'white' }}>September 2024</Typography.Title>
-            <Button 
-              icon={<PlusOutlined />}
-              onClick={() => {/* Add new task logic */}}
-            >
-              Add New Task
-            </Button>
-            <Button 
-              onClick={() => {/* Sync logic */}}
-            >
-              Sync
-            </Button>
-          </Space>
-        </div>
-      </Header>
-      <Content>
-      <Space direction="horizontal" size="small">
-            <Button 
-              type={view === 'weekly' ? 'primary' : 'default'}
-              onClick={() => setView('weekly')}
-              disabled={view === 'weekly'}
-            >
-              Weekly View
-            </Button>
-            <Button 
-              type={view === 'monthly' ? 'primary' : 'default'}
-              onClick={() => setView('monthly')}
-              disabled={view === 'monthly'}
-            >
-              Monthly View
-            </Button>
+    <Router>
+      <Layout>
+        <Header style={{backgroundColor:'gray'}}>
+          <div className="button-group">
+            <Space direction="horizontal" size="small">
+              <Typography.Title level={2} style={{ color: 'white' }}>September 2024</Typography.Title>
+              <Link to="/events">
+                <Button icon={<PlusOutlined />}>
+                  Events
+                </Button>
+              </Link>
+              <Link to="/calendar">
+                <Button icon={<PlusOutlined />}>
+                  Calendar
+                </Button>
+              </Link>
+              <Link to="/add-task">
+                <Button icon={<PlusOutlined />}>
+                  Add New Task
+                </Button>
+              </Link>
+              <Button onClick={() => {/* Sync logic */}}>
+                Sync
+              </Button>
             </Space>
-        {view === 'weekly' ? <Weekly /> : <Month />}
-      </Content>
-    </Layout>
+          </div>
+        </Header>
+        <Content>
+          <Routes>
+            <Route path="/calendar" element={<Month />} />
+            <Route path="/events" element={<Events />} />
+            <Route path="/add-task" element={<Form />} />
+          </Routes>
+        </Content>
+      </Layout>
+    </Router>
   );
 };
 

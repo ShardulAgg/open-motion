@@ -1,5 +1,5 @@
 import React from 'react';
-const Form: React.FC = () => {
+const Events: React.FC = () => {
     return (
         <div>
             <h1>Events</h1>
@@ -7,4 +7,4 @@ const Form: React.FC = () => {
     );
 };
 
-export default Form;
+export default Events;

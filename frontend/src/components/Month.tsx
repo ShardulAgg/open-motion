@@ -1,65 +1,52 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { BadgeProps, CalendarProps } from 'antd';
 import { Badge, Calendar } from 'antd';
 import type { Dayjs } from 'dayjs';
 
-const getListDataBackend = async (value: Dayjs) => {
-  try {
-    const response = await fetch(`http://localhost/routine?date=${value.format('YYYY-MM-DD')}`);
-    if (!response.ok) {
-      throw new Error('Network response was not ok');
-    }
-    const data = await response.json();
-    return data.map((item: any) => ({
-      type: item.type,
-      content: item.content
-    }));
-  } catch (error) {
-    console.error('Error fetching routine data:', error);
-    return [];
-  }
-};
-
-const getListData = (value: Dayjs) => {
-  let listData: { type: string; content: string }[] = []; // Specify the type of listData
-  switch (value.date()) {
-    case 8:
-      listData = [
-        { type: 'warning', content: 'This is warning event.' },
-        { type: 'success', content: 'This is usual event.' },
-      ];
-      break;
-    case 10:
-      listData = [
-        { type: 'warning', content: 'This is warning event.' },
-        { type: 'success', content: 'This is usual event.' },
-        { type: 'error', content: 'This is error event.' },
-      ];
-      break;
-    case 15:
-      listData = [
-        { type: 'warning', content: 'This is warning event' },
-        { type: 'success', content: 'This is very long usual event......' },
-        { type: 'error', content: 'This is error event 1.' },
-        { type: 'error', content: 'This is error event 2.' },
-        { type: 'error', content: 'This is error event 3.' },
-        { type: 'error', content: 'This is error event 4.' },
-      ];
-      break;
-    default:
-  }
-  return listData || [];
-};
-
-const getMonthData = (value: Dayjs) => {
-  if (value.month() === 8) {
-    return 1394;
-  }
-};
+interface CalendarEvent {
+  kind: string;
+  id: string;
+  status: string;
+  summary: string;
+  description: string;
+  start: {
+    dateTime: string;
+    timeZone: string;
+  };
+  end: {
+    dateTime: string;
+    timeZone: string;
+  };
+}
 
 const Month: React.FC = () => {
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const response = await fetch('http://localhost/events');
+        const data = await response.json();
+        setEvents(data[0]);
+      } catch (error) {
+        console.error('Error fetching events:', error);
+      }
+    };
+
+    fetchEvents();
+  }, []);
+
+  const getListData = (value: Dayjs) => {
+    return events
+      .filter(event => value.isSame(event.start.dateTime, 'day'))
+      .map(event => ({
+        type: event.description === 'open-motion' ? 'success' : 'processing',
+        content: event.summary
+      }));
+  };
+
   const monthCellRender = (value: Dayjs) => {
-    const num = getMonthData(value);
+    const num = value.month() === 8 ? 1394 : null;
     return num ? (
       <div className="notes-month">
         <section>{num}</section>
@@ -90,15 +77,11 @@ const Month: React.FC = () => {
   return (
     <Calendar
       cellRender={cellRender}
-      headerRender={({ value }) => {
-        const currentMonth = value.format('MMMM');
-        const currentYear = value.format('YYYY');
-        return (
-          <div style={{ padding: '8px 0', textAlign: 'center' }}>
-            {/* <h2>{`${currentMonth} ${currentYear}`}</h2> */}
-          </div>
-        );
-      }}
+      headerRender={({ value }) => (
+        <div style={{ padding: '8px 0', textAlign: 'center' }}>
+          {/* <h2>{`${value.format('MMMM')} ${value.format('YYYY')}`}</h2> */}
+        </div>
+      )}
     />
   );
 };
