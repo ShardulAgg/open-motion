@@ -1,0 +1,26 @@
+networks:
+  cc-network:
+    name: hack-network
+    driver: bridge
+
+services:
+
+  hack-backend:
+    image: hack-backend
+    build:
+      context: ./backend
+      target: builder
+    container_name: hack-backend
+    networks:
+      - hack-network
+    env_file:
+      - .env
+    environment:
+      PORT: 80
+      MAX_WORKERS: 1
+    ports:
+      - '80:80'
+      - '5678:5678'
+    volumes:
+      - ./backend:/app
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]

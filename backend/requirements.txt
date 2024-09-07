@@ -1,0 +1,7 @@
+uvicorn
+fastapi
+black
+isort
+websockets
+pydantic
+debugpy
