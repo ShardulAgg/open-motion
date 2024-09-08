@@ -48,10 +48,10 @@ function AppContent() {
                 Calendar
               </Button>
             </Link>
-            <Link to="/events">
+            <Link to="/tasks">
               <Button
                 icon={<UnorderedListOutlined />}
-                type={location.pathname === '/events' ? 'primary' : 'default'}
+                type={location.pathname === '/tasks' ? 'primary' : 'default'}
               >
                 Tasks
               </Button>
@@ -72,7 +72,7 @@ function AppContent() {
       </Header>
       <Content>
         <Routes>
-          <Route path="/events" element={<Events />} />
+          <Route path="/tasks" element={<Events />} />
           <Route path="/add-task" element={<Form />} />
           <Route path="/" element={<Month />} />
         </Routes>

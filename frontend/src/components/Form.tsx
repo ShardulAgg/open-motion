@@ -47,18 +47,21 @@ const EventForm: React.FC = () => {
                 </Form.Item>
 
                 <Form.Item
-                    name="duration"
-                    label="Duration"
-                    rules={[{ required: true, message: 'Please select the duration!' }]}
-                >
-                    <Radio.Group>
-                        {['30 minutes', '1 hour', '2 hours', 'Custom'].map((option) => (
-                            <Radio key={option} value={option}>
-                                {option}
-                            </Radio>
-                        ))}
-                    </Radio.Group>
-                </Form.Item>
+    name="duration"
+    label="Duration"
+    rules={[{ required: true, message: 'Please select the duration!' }]}
+>
+    <Radio.Group>
+        {[30, 60, 120, 240].map((minutes) => (
+            <Radio key={minutes} value={`${minutes}`}>
+                {minutes === 60 ? '1 hour' : 
+                 minutes === 120 ? '2 hours' : 
+                 minutes === 240 ? '4 hours' : 
+                 `${minutes} minutes`}
+            </Radio>
+        ))}
+    </Radio.Group>
+</Form.Item>
 
                 <Form.Item>
                     <Button type="primary" htmlType="submit">

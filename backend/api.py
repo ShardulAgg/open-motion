@@ -2,10 +2,12 @@ from core import *
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 import pickle
 import re
+from googleapiclient.errors import HttpError
 
 
 app_router = APIRouter()
@@ -48,6 +50,42 @@ class Task(BaseModel):
     priority: str
     # due_date: datetime
     duration: str
+
+
+
+async def delete_open_motion_events():
+        # Get all events for the current month
+    events = await get_events()
+    open_motion_events = events['open_motion_events']
+    
+    deleted_count = 0
+    for event in open_motion_events:
+        try:
+            # Search for the event by its name
+            events_result = calendar_service.events().list(
+                calendarId='primary',
+                q=event['event-name'],
+                singleEvents=True
+            ).execute()
+            
+            items = events_result.get('items', [])
+            
+            for item in items:
+                if 'open-motion' in item.get('description', '').lower():
+                    calendar_service.events().delete(
+                        calendarId='primary',
+                        eventId=item['id']
+                    ).execute()
+                    deleted_count += 1
+        
+        except HttpError as error:
+            print(f"An error occurred while deleting event {event['event-name']}: {error}")
+    
+    return {"message": f"Successfully deleted {deleted_count} open-motion events"}
+
+
+
+
 
 async def add_task(task: Task):
     start_time = datetime.utcnow() + timedelta(minutes=30)
@@ -113,10 +151,72 @@ async def get_events():
         "open_motion_events": open_motion_events,
         "default_events": default_events
     }
+
+
+async def add_event(event_name: str, event_priority: str, event_duration: str):
+    pst_zone = ZoneInfo("America/Los_Angeles")
+    now = datetime.now(pst_zone)
+    end_time = now + timedelta(days=7)
     
+    events_result = calendar_service.events().list(
+        calendarId='primary',
+        timeMin=now.astimezone(ZoneInfo("UTC")).isoformat(),
+        timeMax=end_time.astimezone(ZoneInfo("UTC")).isoformat(),
+        singleEvents=True,
+        orderBy='startTime'
+    ).execute()
+    events = events_result.get('items', [])
+    
+    duration = timedelta(minutes=int(event_duration.split()[0]))
+    
+    current_time = now.replace(hour=10, minute=0, second=0, microsecond=0)
+    if current_time < now:
+        current_time += timedelta(days=1)
+    
+    while current_time < end_time:
+        if 10 <= current_time.hour < 21 and current_time.weekday() < 5:
+            event_start = current_time
+            event_end = event_start + duration
+            if event_end.hour >= 21:
+                current_time = current_time.replace(hour=10, minute=0) + timedelta(days=1)
+                continue
+            
+            if all(event_start >= datetime.fromisoformat(e['end'].get('dateTime', e['end'].get('date'))).replace(tzinfo=pst_zone) or
+                   event_end <= datetime.fromisoformat(e['start'].get('dateTime', e['start'].get('date'))).replace(tzinfo=pst_zone)
+                   for e in events):
+                new_event = {
+                    'summary': event_name,
+                    'description': f'open-motion\nPriority: {event_priority}\nDuration: {event_duration}',
+                    'start': {'dateTime': event_start.isoformat(), 'timeZone': 'America/Los_Angeles'},
+                    'end': {'dateTime': event_end.isoformat(), 'timeZone': 'America/Los_Angeles'},
+                }
+                calendar_service.events().insert(calendarId='primary', body=new_event).execute()
+                return {"message": f"Event '{event_name}' added successfully for {event_start.isoformat()}"}
+        
+        current_time += timedelta(minutes=15)
+    
+    return {"message": "No suitable time slot found within the next week's business hours"}
+
+async def add_events(open_motion_events: list[dict[str, str]]):
+    priority_order = {'high': 1, 'medium': 2, 'low': 3}
+    
+    # Sort events by priority
+    sorted_events = sorted(open_motion_events, key=lambda x: priority_order.get(x['event-priority'], 4))
+    
+    for event in sorted_events:
+        await add_event(
+            event_name=event['event-name'],
+            event_priority=event['event-priority'],
+            event_duration=event['event-duration']
+        )
+
+
 async def sync():
     events = await get_events()
-    
+    open_motion_events = events['open_motion_events']
+    await delete_open_motion_events()
+    return await add_events(open_motion_events)
+
 
 @app_router.post("/add_task")
 async def create_task(task: Task):
