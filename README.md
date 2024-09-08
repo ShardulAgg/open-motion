@@ -7,9 +7,11 @@
 3. Enable the Google Calendar API for your project.
 4. Go to the Credentials page.
 5. Click "Create Credentials" and select "OAuth client ID".
-6. Choose "Desktop app" as the application type.
-7. Download the client configuration file (credentials.json).
-8. Copy the downloaded credentials.json file to the `backend` folder of your project.
+6. Choose "Web Application" as the application type.
+7. Add http://localhost:8000/oauth2callback as redirect URL
+8. Download the client configuration file (credentials.json).
+9. Copy the downloaded credentials.json file to the `backend` folder of your project.
+
 
 Ensure that the credentials.json file is properly placed in the backend folder before proceeding with the next steps.
 
