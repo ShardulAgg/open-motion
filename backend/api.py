@@ -15,10 +15,9 @@ SCOPES = ['https://www.googleapis.com/auth/calendar']
 calendar_service = None
 
 class Task(BaseModel):
-    name: str
-    desc: str
-    priority: int
-    due_date: datetime
+    eventName: str
+    priority: str
+    # due_date: datetime
     duration: str
 
 @app_router.post("/add_task")
@@ -138,6 +137,65 @@ async def get_calendar_events():
 
 @app_router.get("/get_categorized_events")
 async def get_categorized_events():
+    if not calendar_service:
+        raise HTTPException(status_code=500, detail="Google Calendar service not initialized")
+    try:
+        # Get the first and last day of the current month
+        now = datetime.utcnow()
+        first_day = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        last_day = (first_day + timedelta(days=32)).replace(day=1) - timedelta(seconds=1)
+
+        # Fetch events from Google Calendar for the current month
+        events_result = calendar_service.events().list(
+            calendarId='primary',
+            timeMin=first_day.isoformat() + 'Z',
+            timeMax=last_day.isoformat() + 'Z',
+            singleEvents=True,
+            orderBy='startTime'
+        ).execute()
+        events = events_result.get('items', [])
+
+        open_motion_events = []
+        default_events = []
+
+        for event in events:
+            start = event['start'].get('dateTime', event['start'].get('date'))
+            end = event['end'].get('dateTime', event['end'].get('date'))
+            
+            if 'open-motion' in event.get('description', '').lower():
+                # Parse priority and duration from the description
+                description = event.get('description', '').lower()
+                priority = 'medium'  # default priority
+                if 'high' in description:
+                    priority = 'high'
+                elif 'low' in description:
+                    priority = 'low'
+                
+                duration = '60 minutes'  # default duration
+                duration_match = re.search(r'(\d+)\s*minutes', description)
+                if duration_match:
+                    duration = f"{duration_match.group(1)} minutes"
+
+                open_motion_events.append({
+                    'event-name': event['summary'],
+                    'event-priority': priority,
+                    'event-duration': duration
+                })
+            else:
+                default_events.append({
+                    'event-name': event['summary'],
+                    'timeslot': f"{start} to {end}"
+                })
+
+        return {
+            "open_motion_events": open_motion_events,
+            "default_events": default_events
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+async def syncEvents():
     if not calendar_service:
         raise HTTPException(status_code=500, detail="Google Calendar service not initialized")
     try:
