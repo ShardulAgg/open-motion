@@ -88,13 +88,14 @@ async def delete_open_motion_events():
 
 
 async def add_task(task: Task):
-    start_time = datetime.utcnow() + timedelta(minutes=30)
-    end_time = start_time + timedelta(minutes=int(task.duration.split()[0]))
+    start_time = datetime.now(ZoneInfo("America/Los_Angeles"))
+    duration_minutes = int(task.duration.split()[0])
+    end_time = start_time + timedelta(minutes=duration_minutes)
     event = {
         'summary': task.eventName,
         'description': f'open-motion\nPriority: {task.priority}\nDuration: {task.duration}',
-        'start': {'dateTime': start_time.isoformat() + 'Z'},
-        'end': {'dateTime': end_time.isoformat() + 'Z'},
+        'start': {'dateTime': start_time.isoformat(), 'timeZone': 'America/Los_Angeles'},
+        'end': {'dateTime': end_time.isoformat(), 'timeZone': 'America/Los_Angeles'},
     }
     calendar_service.events().insert(calendarId='primary', body=event).execute()
     return {"message": "Task added successfully to Google Calendar"}
