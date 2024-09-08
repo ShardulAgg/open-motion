@@ -8,7 +8,7 @@
 4. Go to the Credentials page.
 5. Click "Create Credentials" and select "OAuth client ID".
 6. Choose "Web Application" as the application type.
-7. Add http://localhost:8000/oauth2callback as redirect URL
+7. Add http://localhost:80/oauth2callback as redirect URL
 8. Download the client configuration file (credentials.json).
 9. Copy the downloaded credentials.json file to the `backend` folder of your project.
 
