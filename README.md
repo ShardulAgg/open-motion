@@ -1,5 +1,18 @@
 # Open Motion - Use AI to plan your work automatically, locally, for free
 
+## Quick start: Get Google Authentication API credentials.json and paste it to backend folder 
+
+1. Go to the Google Cloud Console (https://console.cloud.google.com/).
+2. Create a new project or select an existing one.
+3. Enable the Google Calendar API for your project.
+4. Go to the Credentials page.
+5. Click "Create Credentials" and select "OAuth client ID".
+6. Choose "Desktop app" as the application type.
+7. Download the client configuration file (credentials.json).
+8. Copy the downloaded credentials.json file to the `backend` folder of your project.
+
+Ensure that the credentials.json file is properly placed in the backend folder before proceeding with the next steps.
+
 ## Quick Start: Run the backend and connect to Google Calendar
 
 1. Navigate to the project root and open a terminal.
