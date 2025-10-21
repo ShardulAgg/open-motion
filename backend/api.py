@@ -1,4 +1,4 @@
-from core import *
+from core import get_calendar_service, set_calendar_service, initialize_calendar_service
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from datetime import datetime, timedelta
@@ -7,6 +7,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 import pickle
 import re
+import os
 from googleapiclient.errors import HttpError
 
 
@@ -14,13 +15,15 @@ app_router = APIRouter()
 
 
 SCOPES = ['https://www.googleapis.com/auth/calendar']
-calendar_service = None
+
 @app_router.get("/start_auth")
 async def start_auth():
+    if not os.path.exists('credentials.json'):
+        raise HTTPException(status_code=500, detail="credentials.json not found. Please follow setup instructions in README.md")
     flow = InstalledAppFlow.from_client_secrets_file(
-        'credentials.json', 
+        'credentials.json',
         SCOPES,
-        redirect_uri='http://localhost:80/oauth2callback'  # Use your actual redirect URI
+        redirect_uri='http://localhost:80/oauth2callback'
     )
     auth_url, _ = flow.authorization_url(prompt='consent')
     return auth_url
@@ -31,18 +34,18 @@ async def oauth2callback(code: str = None, error: str = None):
         return {"error": error}
     if code:
         flow = InstalledAppFlow.from_client_secrets_file(
-            'credentials.json', 
+            'credentials.json',
             SCOPES,
             redirect_uri='http://localhost:80/oauth2callback'
         )
         flow.fetch_token(code=code)
         creds = flow.credentials
-        
+
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
-        
-        global calendar_service
-        calendar_service = build('calendar', 'v3', credentials=creds)
+
+        service = build('calendar', 'v3', credentials=creds)
+        set_calendar_service(service)
         return {"message": "Authentication completed successfully"}
 
 class Task(BaseModel):
@@ -51,13 +54,26 @@ class Task(BaseModel):
     # due_date: datetime
     duration: str
 
+def normalize_duration(duration: str) -> str:
+    """Normalize duration to 'X minutes' format"""
+    duration = duration.strip()
+    if duration.isdigit():
+        return f"{duration} minutes"
+    return duration
 
+def normalize_priority(priority: str) -> str:
+    """Normalize priority to lowercase"""
+    return priority.lower()
 
 async def delete_open_motion_events():
-        # Get all events for the current month
+    # Get all events for the current month
+    calendar_service = get_calendar_service()
+    if not calendar_service:
+        raise HTTPException(status_code=500, detail="Google Calendar service not initialized")
+
     events = await get_events()
     open_motion_events = events['open_motion_events']
-    
+
     deleted_count = 0
     for event in open_motion_events:
         try:
@@ -67,9 +83,9 @@ async def delete_open_motion_events():
                 q=event['event-name'],
                 singleEvents=True
             ).execute()
-            
+
             items = events_result.get('items', [])
-            
+
             for item in items:
                 if 'open-motion' in item.get('description', '').lower():
                     calendar_service.events().delete(
@@ -77,10 +93,10 @@ async def delete_open_motion_events():
                         eventId=item['id']
                     ).execute()
                     deleted_count += 1
-        
+
         except HttpError as error:
             print(f"An error occurred while deleting event {event['event-name']}: {error}")
-    
+
     return {"message": f"Successfully deleted {deleted_count} open-motion events"}
 
 
@@ -88,12 +104,20 @@ async def delete_open_motion_events():
 
 
 async def add_task(task: Task):
+    calendar_service = get_calendar_service()
+    if not calendar_service:
+        raise HTTPException(status_code=500, detail="Google Calendar service not initialized")
+
+    # Normalize inputs
+    normalized_duration = normalize_duration(task.duration)
+    normalized_priority = normalize_priority(task.priority)
+
     start_time = datetime.now(ZoneInfo("America/Los_Angeles"))
-    duration_minutes = int(task.duration.split()[0])
+    duration_minutes = int(normalized_duration.split()[0])
     end_time = start_time + timedelta(minutes=duration_minutes)
     event = {
         'summary': task.eventName,
-        'description': f'open-motion\nPriority: {task.priority}\nDuration: {task.duration}',
+        'description': f'open-motion\nPriority: {normalized_priority}\nDuration: {normalized_duration}',
         'start': {'dateTime': start_time.isoformat(), 'timeZone': 'America/Los_Angeles'},
         'end': {'dateTime': end_time.isoformat(), 'timeZone': 'America/Los_Angeles'},
     }
@@ -101,7 +125,11 @@ async def add_task(task: Task):
     return {"message": "Task added successfully to Google Calendar"}
 
 async def get_events():
-        # Get the first and last day of the current month
+    # Get the first and last day of the current month
+    calendar_service = get_calendar_service()
+    if not calendar_service:
+        raise HTTPException(status_code=500, detail="Google Calendar service not initialized")
+
     now = datetime.utcnow()
     first_day = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     last_day = (first_day + timedelta(days=32)).replace(day=1) - timedelta(seconds=1)
@@ -155,10 +183,14 @@ async def get_events():
 
 
 async def add_event(event_name: str, event_priority: str, event_duration: str):
+    calendar_service = get_calendar_service()
+    if not calendar_service:
+        raise HTTPException(status_code=500, detail="Google Calendar service not initialized")
+
     pst_zone = ZoneInfo("America/Los_Angeles")
     now = datetime.now(pst_zone)
     end_time = now + timedelta(days=7)
-    
+
     events_result = calendar_service.events().list(
         calendarId='primary',
         timeMin=now.astimezone(ZoneInfo("UTC")).isoformat(),
@@ -227,7 +259,8 @@ async def create_task(task: Task):
 
 
 @app_router.post("/create_open_motion_events")
-async def create_task():
+async def create_open_motion_events():
+    calendar_service = get_calendar_service()
     if not calendar_service:
         raise HTTPException(status_code=500, detail="Google Calendar service not initialized")
     try:
@@ -253,6 +286,7 @@ async def create_task():
 
 @app_router.get("/events")
 async def get_calendar_events():
+    calendar_service = get_calendar_service()
     if not calendar_service:
         raise HTTPException(status_code=500, detail="Google Calendar service not initialized")
     try:
@@ -278,20 +312,22 @@ async def get_calendar_events():
 
 @app_router.get("/get_categorized_events")
 async def get_categorized_events():
+    calendar_service = get_calendar_service()
     if not calendar_service:
         raise HTTPException(status_code=500, detail="Google Calendar service not initialized")
     try:
-        # Get the first and last day of the current month
         return await get_events()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
-async def syncEvents():
+@app_router.post("/sync")
+async def sync_events():
+    calendar_service = get_calendar_service()
     if not calendar_service:
         raise HTTPException(status_code=500, detail="Google Calendar service not initialized")
     try:
-        # Get the first and last day of the current month
-        return await sync()
+        await sync()
+        return {"message": "Events synchronized successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 

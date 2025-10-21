@@ -1,7 +1,7 @@
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException
-from api import *
 from api import app_router
+from core import initialize_calendar_service
 import debugpy
 
 
@@ -19,30 +19,20 @@ def setup_fastapi():
     return app
 
 
-
 # Set up app
 app = setup_fastapi()
 
 
-# Function to initialize Google Calendar service
-
-
-
-
 def onload():
-    # pass
     debugpy.listen(("0.0.0.0", 5678))
-    # initialize_calendar_service()
-
-
+    # Try to initialize calendar service from existing token
+    if initialize_calendar_service():
+        print("Google Calendar service initialized successfully from existing token")
+    else:
+        print("No existing token found. Please authenticate via /start_auth endpoint")
 
 
 onload()
-
-
-# FastAPI startup event to initialize the Google Calendar service
-    
-
 
 
 # Include routers

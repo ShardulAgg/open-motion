@@ -214,5 +214,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-*.json
+# Exclude sensitive authentication files
+backend/token.pickle
+backend/credentials.json
+
+# Exclude all .env files
 *.env
